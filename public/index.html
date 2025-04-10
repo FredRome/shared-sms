@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shared SMS Inbox</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Shared SMS Inbox</h1>
+      <p>A collaborative SMS inbox for your team</p>
+    </header>
+    
+    <main>
+      <div class="inbox-container">
+        <div class="message-list" id="message-list">
+          <!-- Messages will be populated here -->
+          <div class="empty-state">No messages yet</div>
+        </div>
+        
+        <div class="message-detail" id="message-detail">
+          <div class="empty-state">Select a message to view details</div>
+          
+          <div class="message-content" id="message-content" style="display: none;">
+            <div class="message-header">
+              <h2 id="message-from"></h2>
+              <span class="timestamp" id="message-time"></span>
+              <span class="status" id="message-status"></span>
+            </div>
+            
+            <div class="message-body" id="message-body"></div>
+            
+            <div class="reply-form">
+              <h3>Send Reply</h3>
+              <textarea id="reply-text" placeholder="Type your reply here..."></textarea>
+              <button id="send-reply" class="btn-primary">Send</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+    
+    <footer>
+      <p>Powered by <a href="https://46elks.com" target="_blank">46elks</a></p>
+    </footer>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

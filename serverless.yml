@@ -1,0 +1,121 @@
+service: shared-sms-inbox
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: eu-north-1
+  memorySize: 256
+  timeout: 30
+  httpApi:
+    payload: '2.0'
+    binaryMediaTypes:
+      - '*/*'  # Or restrict to 46elks-specific content types if known
+  environment:
+    API_USERNAME: ${env:API_USERNAME, 'REPLACE_WITH_YOUR_USERNAME'}
+    API_PASSWORD: ${env:API_PASSWORD, 'REPLACE_WITH_YOUR_PASSWORD'}
+    DYNAMODB_TABLE: ${self:service}-${sls:stage}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource: 
+        - Fn::GetAtt: [MessagesTable, Arn]
+    - Effect: Allow
+      Action:
+        - s3:PutObject
+        - s3:GetObject
+      Resource: 
+        - Fn::Join:
+            - ""
+            - - "arn:aws:s3:::"
+              - "${self:service}-${sls:stage}-public"
+              - "/*"
+
+# Updated packaging configuration to include all dependencies
+package:
+  individually: false # Package all functions together
+  patterns:
+    - "!./**"
+    - "index.js"
+    - "package.json"
+    - "node_modules/**"
+    - "public/**"
+
+functions:
+  api:
+    handler: index.handler
+    events:
+      - httpApi: "*"
+
+resources:
+  Resources:
+    MessagesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+
+    StaticSiteBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: !Join ['-', [Ref: AWS::StackName, 'public']]
+        WebsiteConfiguration:
+          IndexDocument: index.html
+        OwnershipControls:
+          Rules:
+            - ObjectOwnership: ObjectWriter
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: false
+          BlockPublicPolicy: false
+          IgnorePublicAcls: false
+          RestrictPublicBuckets: false
+
+    StaticSiteBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref StaticSiteBucket
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: PublicReadGetObject
+              Effect: Allow
+              Principal: "*"
+              Action:
+                - s3:GetObject
+              Resource: 
+                - !Join 
+                  - ""
+                  - - "arn:aws:s3:::"
+                    - !Ref StaticSiteBucket
+                    - "/*"
+
+plugins:
+  - serverless-offline
+  - serverless-s3-sync
+
+custom:
+  s3Sync:
+    - bucketName: ${self:service}-${sls:stage}-public
+      localDir: public
+      followSymlinks: true
+      defaultContentType: text/html
+      params:
+        - index.html:
+            CacheControl: 'no-cache'
+        - "*.js":
+            CacheControl: 'no-cache'
+        - "*.css":
+            CacheControl: 'no-cache'
+  deploymentBucket:
+    blockPublicAccess: false

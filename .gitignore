@@ -58,3 +58,32 @@ bower_components
 
 # Optional eslint cache
 .eslintcache
+
+# Serverless deployment artifacts
+.serverless/
+.webpack/
+serverless.manifest.json
+*-deploy.zip
+*.zip
+
+# Local DynamoDB
+.dynamodb/
+
+# AWS SAM CLI
+.aws-sam/
+
+# VS Code and editor files
+.vscode/
+*.sublime-workspace
+*.sublime-project
+.idea/
+*.swp
+*.swo
+
+# Temporary folders
+tmp/
+temp/
+
+# Distribution / packaging
+dist/
+build/

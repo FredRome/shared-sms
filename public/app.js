@@ -1,6 +1,3 @@
-// Connect to the Socket.IO server
-const socket = io();
-
 // DOM elements
 const messageList = document.getElementById('message-list');
 const messageDetail = document.getElementById('message-detail');
@@ -15,21 +12,67 @@ const sendReplyBtn = document.getElementById('send-reply');
 // Store for messages
 let messages = [];
 let selectedMessageId = null;
+let lastPollTime = Date.now();
 
 // Initialize the app
 async function init() {
   try {
     // Fetch existing messages
-    const response = await fetch('/api/messages');
-    messages = await response.json();
-    
-    // Render messages
-    renderMessageList();
+    await fetchMessages();
     
     // Set up event listeners
     setupEventListeners();
+    
+    // Set up polling for new messages
+    setInterval(pollForNewMessages, 10000); // Poll every 10 seconds
   } catch (error) {
     console.error('Error initializing app:', error);
+  }
+}
+
+// Fetch messages from the API
+async function fetchMessages() {
+  try {
+    const response = await fetch('/api/messages');
+    messages = await response.json();
+    renderMessageList();
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+  }
+}
+
+// Poll for new messages
+async function pollForNewMessages() {
+  try {
+    const response = await fetch('/api/messages');
+    const latestMessages = await response.json();
+    
+    // Check for new or updated messages
+    let hasNewMessages = false;
+    
+    latestMessages.forEach(newMsg => {
+      const existingMsgIndex = messages.findIndex(msg => msg.id === newMsg.id);
+      if (existingMsgIndex === -1) {
+        // This is a new message
+        messages.push(newMsg);
+        hasNewMessages = true;
+      } else if (JSON.stringify(messages[existingMsgIndex]) !== JSON.stringify(newMsg)) {
+        // This message has been updated
+        messages[existingMsgIndex] = newMsg;
+        hasNewMessages = true;
+        
+        // If this is the currently selected message, update the detail view
+        if (selectedMessageId === newMsg.id) {
+          selectMessage(newMsg);
+        }
+      }
+    });
+    
+    if (hasNewMessages) {
+      renderMessageList();
+    }
+  } catch (error) {
+    console.error('Error polling for messages:', error);
   }
 }
 
@@ -159,6 +202,15 @@ async function sendReply() {
     if (result.success) {
       // Clear the reply text field
       replyText.value = '';
+      
+      // Add the sent message to the message list
+      if (result.message) {
+        messages.push(result.message);
+        renderMessageList();
+      } else {
+        // If the server didn't return the message, poll for new messages
+        await fetchMessages();
+      }
     } else {
       alert('Failed to send reply. Please try again.');
     }
@@ -201,32 +253,6 @@ function setupEventListeners() {
   replyText.addEventListener('keypress', function(event) {
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
       sendReply();
-    }
-  });
-  
-  // Socket.IO events
-  socket.on('new-message', (message) => {
-    // Add to message store if not already present
-    if (!messages.find(msg => msg.id === message.id)) {
-      messages.push(message);
-      renderMessageList();
-      
-      // Play notification sound or show notification
-      // This could be added later
-    }
-  });
-  
-  socket.on('message-updated', (updatedMessage) => {
-    // Update in message store
-    const messageIndex = messages.findIndex(msg => msg.id === updatedMessage.id);
-    if (messageIndex !== -1) {
-      messages[messageIndex] = updatedMessage;
-      renderMessageList();
-      
-      // If this is the currently selected message, update the detail view
-      if (selectedMessageId === updatedMessage.id) {
-        selectMessage(updatedMessage);
-      }
     }
   });
 }

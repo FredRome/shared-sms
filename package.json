@@ -4,16 +4,23 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "aws-sdk": "^2.1692.0",
     "axios": "^1.8.4",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
+    "raw-body": "^3.0.0",
+    "serverless-http": "^3.2.0",
     "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "serverless-offline": "^14.4.0",
+    "serverless-s3-sync": "^3.4.0"
   }
 }

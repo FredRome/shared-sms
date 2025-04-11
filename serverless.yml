@@ -14,6 +14,8 @@ provider:
     API_USERNAME: ${env:API_USERNAME, 'REPLACE_WITH_YOUR_USERNAME'}
     API_PASSWORD: ${env:API_PASSWORD, 'REPLACE_WITH_YOUR_PASSWORD'}
     DYNAMODB_TABLE: ${self:service}-${sls:stage}
+    TELAVOX_ADMIN_TOKEN: ${env:TELAVOX_ADMIN_TOKEN, ''}
+    TELAVOX_USER_TOKEN: ${env:TELAVOX_USER_TOKEN, ''}
   iamRoleStatements:
     - Effect: Allow
       Action:

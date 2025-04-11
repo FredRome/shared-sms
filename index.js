@@ -11,6 +11,8 @@ const dynamoDB = new AWS.DynamoDB.DocumentClient();
 const API_USERNAME = process.env.API_USERNAME;
 const API_PASSWORD = process.env.API_PASSWORD;
 const TABLE_NAME = process.env.DYNAMODB_TABLE || 'SharedSmsInbox';
+const TELAVOX_ADMIN_TOKEN = process.env.TELAVOX_ADMIN_TOKEN;
+const TELAVOX_USER_TOKEN = process.env.TELAVOX_USER_TOKEN;
 
 const app = express();
 
@@ -221,6 +223,102 @@ app.post('/api/webhook', async (req, res) => {
       TableName: TABLE_NAME,
       Item: newMessage
     }).promise();
+
+    // Create Telavox ticket
+    try {
+      // Step 1: Create ticket
+      const visitorId = from.replace(/^\+46/, '0'); // Extract only numbers from the sender's phone
+      const createTicketResponse = await axios.post(
+        `https://flow.telavox.com/api/internal/tickets?visitorId=${visitorId}`,
+        '',
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${TELAVOX_ADMIN_TOKEN}`
+          }
+        }
+      );
+
+      console.log('Telavox ticket created:', createTicketResponse.data);
+      
+      // Get ticket ID from response
+      const ticketId = createTicketResponse.data.key;
+      if (!ticketId) {
+        throw new Error('No ticket ID returned from Telavox API');
+      }
+
+      // Step 2: Add member to the ticket
+      await axios.put(
+        `https://flow.telavox.com/api/internal/tickets/${ticketId}/members`,
+        [
+            'extension-6302421',
+            'extension-1829770',
+            'extension-1829703',
+            'extension-4105463',
+            'extension-2593256',
+            'extension-1379',
+            'extension-905678',
+            'extension-4229674',
+            'extension-3533994',
+            'extension-4425906',
+            'extension-906127',
+            'extension-292423',
+            'extension-1159014',
+            'extension-1810281',
+            'extension-5089384',
+            'extension-2412214',
+            'extension-1403122',
+            'extension-1241031',
+            'extension-1746309',
+            'extension-8260',
+            'extension-1491560',
+            'extension-370096',
+            'extension-905679',
+            'extension-6430368'
+        ],
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${TELAVOX_ADMIN_TOKEN}`
+          }
+        }
+      );
+      
+      console.log('Member added to ticket:', ticketId);
+
+      // Step 3: Add internal note with the SMS message
+      await axios.put(
+        `https://flow.telavox.com/api/internal/tickets/${ticketId}/internalNotes`,
+        {
+          "DTOSubtype": "OmniInternalNoteTicketEvent",
+          "type": "note_internal",
+          "message": `SMS from ${from}: ${message}`,
+          "stylings": [],
+          "sender": "extension-6302421",
+          "read": true
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${TELAVOX_USER_TOKEN}`
+          }
+        }
+      );
+      
+      console.log('Internal note added to ticket:', ticketId);
+      
+      // Store ticket ID in DynamoDB
+      await dynamoDB.update({
+        TableName: TABLE_NAME,
+        Key: { id },
+        UpdateExpression: 'set telavoxTicketId = :ticketId',
+        ExpressionAttributeValues: { ':ticketId': ticketId }
+      }).promise();
+      
+    } catch (telavoxError) {
+      console.error('Error creating Telavox ticket:', telavoxError.response?.data || telavoxError.message);
+      // Continue with normal response even if Telavox ticket creation fails
+    }
 
     res.status(200).json({ success: true });
   } catch (error) {
